@@ -1,18 +1,17 @@
 <template>
   <ion-content>
     <ion-list>
-      <!-- TODO: Need to give Shipping Label Error Option -->
-      <ion-item button>
-        <ion-icon slot="start" :icon="printOutline" />
-        {{ translate("Shipping label") }}
+      <ion-item button :disabled="order.hasMissingShipmentInfo || order.hasMissingPackageInfo" @click="closeModal('regenerateShippingLabel')">
+        {{ translate("Regenerate shipping label") }}
       </ion-item>
-      <ion-item button>
-        <ion-icon slot="start" :icon="printOutline" />
-        {{ translate("Customer letter") }}
+      <ion-item button :disabled="order.hasMissingShipmentInfo || order.hasMissingPackageInfo" @click="closeModal('printPackingSlip')">
+        {{ translate("Print customer letter") }}
       </ion-item>
-      <ion-item button lines="none">
-        <ion-icon slot="start" :icon="lockOpenOutline" />
+      <ion-item button :disabled="!hasPermission(Actions.APP_UNPACK_ORDER) || order.hasMissingShipmentInfo || order.hasMissingPackageInfo || !hasPackedShipments" @click="closeModal('unpackOrder')">
         {{ translate("Unpack") }}
+      </ion-item>
+      <ion-item button :disabled="!order.missingLabelImage" lines="none" @click="closeModal('showShippingLabelErrorModal')">
+        {{ translate("Shipping label error") }}
       </ion-item>
     </ion-list>
   </ion-content>
@@ -21,26 +20,37 @@
 <script lang="ts">
 import {
   IonContent,
-  IonIcon,
   IonItem,
   IonList
 } from "@ionic/vue";
 import { defineComponent } from "vue";
-import { printOutline, lockOpenOutline } from 'ionicons/icons'
+import { lockOpenOutline, printOutline, receiptOutline, warningOutline } from 'ionicons/icons'
+import { Actions, hasPermission } from '@/authorization'
+import { popoverController } from "@ionic/core";
 import { translate } from "@hotwax/dxp-components";
 
 export default defineComponent({
   name: "ShippingPopover",
   components: { 
     IonContent,
-    IonIcon,
     IonItem,
     IonList,
   },
+  props: ['hasPackedShipments', 'order'],
+  methods: {
+    closeModal(selectedMethod: string) {
+      // Sending function name to be called after popover dismiss.
+      popoverController.dismiss({selectedMethod})
+    }
+  },
   setup() {
     return {
-      printOutline,
+      Actions,
+      hasPermission,
       lockOpenOutline,
+      printOutline,
+      receiptOutline,
+      warningOutline,
       translate 
     }
   }

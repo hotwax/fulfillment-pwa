@@ -90,11 +90,11 @@
               </div>
             </div>
 
-            <!-- TODO: implement functionality to mobile view -->
             <div class="mobile-only">
               <ion-item>
-                <ion-button :disabled="order.hasMissingShipmentInfo || order.hasMissingPackageInfo" fill="clear" >{{ translate("Ship Now") }}</ion-button>
-                <ion-button slot="end" fill="clear" color="medium" @click="shippingPopover">
+                <ion-button v-if="!hasPackedShipments(order)" :disabled="true" fill="clear">{{ translate("Shipped") }}</ion-button>
+                <ion-button v-else :disabled="order.hasMissingShipmentInfo || order.hasMissingPackageInfo" fill="clear" @click="shipOrder(order)">{{ translate("Ship Now") }}</ion-button>
+                <ion-button slot="end" fill="clear" color="medium" @click="shippingPopover($event, order)">
                   <ion-icon slot="icon-only" :icon="ellipsisVerticalOutline" />
                 </ion-button>
               </ion-item>
@@ -104,13 +104,13 @@
             <div class="actions">
               <div class="desktop-only">
                 <ion-button v-if="!hasPackedShipments(order)" :disabled="true">{{ translate("Shipped") }}</ion-button>
-                <ion-button  :disabled="order.hasMissingShipmentInfo || order.hasMissingPackageInfo" @click="shipOrder(order)" v-else>{{ translate("Ship Now") }}</ion-button>
+                <ion-button :disabled="order.hasMissingShipmentInfo || order.hasMissingPackageInfo" @click="shipOrder(order)" v-else>{{ translate("Ship Now") }}</ion-button>
                 <ion-button :disabled="order.hasMissingShipmentInfo || order.hasMissingPackageInfo" fill="outline" @click="regenerateShippingLabel(order)">
-                  {{ translate("Regenerate Shipping Label") }}
+                  {{ translate("Regenerate shipping label") }}
                   <ion-spinner color="primary" slot="end" v-if="order.isGeneratingShippingLabel" name="crescent" />
                 </ion-button>
                 <ion-button :disabled="order.hasMissingShipmentInfo || order.hasMissingPackageInfo" fill="outline" @click="printPackingSlip(order)">
-                  {{ translate("Print Customer Letter") }}
+                  {{ translate("Print customer letter") }}
                   <ion-spinner color="primary" slot="end" v-if="order.isGeneratingPackingSlip" name="crescent" />
                 </ion-button>
               </div>
@@ -168,7 +168,7 @@ import {
 } from '@ionic/vue';
 import { defineComponent } from 'vue';
 import { cubeOutline, printOutline, downloadOutline, pricetagOutline, ellipsisVerticalOutline, checkmarkDoneOutline, optionsOutline } from 'ionicons/icons'
-import Popover from '@/views/ShippingPopover.vue'
+import ShippingPopover from '@/views/ShippingPopover.vue'
 import { useRouter } from 'vue-router';
 import { mapGetters, useStore } from 'vuex'
 import { copyToClipboard, formatUtcDate, getFeature, showToast } from '@/utils'
@@ -376,16 +376,29 @@ export default defineComponent({
       return shipOrderAlert.present();
     },
 
-    async shippingPopover(ev: Event) {
+    async shippingPopover(ev: Event, order:any) {
       const popover = await popoverController.create({
-        component: Popover,
+        component: ShippingPopover,
+        componentProps: {
+          hasPackedShipments: this.hasPackedShipments(order),
+          order
+        },
         event: ev,
         translucent: true,
         showBackdrop: false,
       });
+
+      popover.onDidDismiss().then(async(result) => {
+        const selectedMethod = result.data?.selectedMethod
+
+        // Retrieved the method name on popover dismissal and respective method is called.
+        if(typeof(this[selectedMethod]) === 'function') {
+          await (this as any)[selectedMethod](order);
+        }
+      })
+
       return popover.present();
     },
-
     async fetchShipmentMethods() {
       const payload = prepareOrderQuery({
         viewSize: "0",  // passing viewSize as 0, as we don't want to fetch any data
