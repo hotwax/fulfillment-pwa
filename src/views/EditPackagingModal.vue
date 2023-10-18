@@ -7,8 +7,8 @@
         </ion-button>
       </ion-buttons>
       <ion-title>{{ translate("Edit packaging") }}</ion-title>
-      <ion-buttons slot="end">
-        <ion-button fill="clear">{{ translate("Save") }}</ion-button>
+      <ion-buttons slot="end" @click="save(order)">
+        <ion-button color="primary" fill="clear">{{ translate("Save") }}</ion-button>
       </ion-buttons>
     </ion-toolbar>
   </ion-header>
@@ -17,47 +17,45 @@
     <ion-card>
       <div class="card-header">
         <div class="order-tags">
-          <ion-chip outline>
+          <ion-chip @click="copyToClipboard(order.orderName, 'Copied to clipboard')" outline>
             <ion-icon :icon="pricetag" />
-            <ion-label>NN10584</ion-label>
+            <ion-label>{{ order.orderName }}</ion-label>
           </ion-chip>
         </div>
 
         <div class="order-primary-info">
           <ion-label>
-            Darooty Magwood
-            <p>{{ translate("Ordered") }} 27th January 2020 9:24 PM EST</p>
+            {{ order.customerName }}
+            <p>{{ translate("Ordered") }} {{ formatUtcDate(order.orderDate, 'dd MMMM yyyy t a ZZZZ') }}</p>
           </ion-label>
         </div>
 
         <div class="order-metadata">
           <ion-label>
-            Next Day Shipping
-            <p>{{ translate("Ordered") }} 28th January 2020 2:32 PM EST</p>
+            {{ order.shipmentMethodTypeDesc }}
+            <p v-if="order.reservedDatetime">{{ translate("Last brokered") }} {{ formatUtcDate(order.reservedDatetime, 'dd MMMM yyyy t a ZZZZ') }}</p>
           </ion-label>
         </div>
       </div>
 
-      <div class="order-item">
+      <div v-for="(item, index) in order.items" :key="index" class="order-item">
         <div class="product-info">
           <ion-item lines="none">
             <ion-thumbnail slot="start">
-              <img src="https://dev-resources.hotwax.io/resources/uploads/images/product/m/j/mj08-blue_main.jpg" />
+              <ShopifyImg size="small" :src="getProduct(item.productId).mainImageUrl" />
             </ion-thumbnail>
             <ion-label>
-              <p class="overline">WJ06-XL-PURPLE</p>
-              Juno Jacket
-              <p>Blue XL</p>
+              <p class="overline">{{ item.productSku }}</p>
+              {{ item.productName }}
+              <p>{{ getFeature(getProduct(item.productId).featureHierarchy, '1/COLOR/')}} {{ getFeature(getProduct(item.productId).featureHierarchy, '1/SIZE/')}}</p>
             </ion-label>
           </ion-item>
         </div>
 
         <div class="product-metadata">
-          <ion-item lines="none">   
-            <ion-label>{{ translate("Select box") }}</ion-label>
-            <ion-select>
-              <ion-select-option>Box A Type 3</ion-select-option>
-              <ion-select-option>Box B Type 2</ion-select-option>
+          <ion-item lines="none">
+            <ion-select aria-label="Select box" interface="popover" @ionChange="updateBox($event, item, order)" :value="item.selectedBox">
+              <ion-select-option v-for="shipmentPackage in order.shipmentPackages" :key="shipmentPackage.shipmentId" :value="shipmentPackage.packageName"> {{ translate("Box") }} {{ shipmentPackage.packageName }}</ion-select-option>
             </ion-select>
           </ion-item>
         </div>
@@ -67,17 +65,17 @@
     <ion-list>
       <ion-item lines="none">
         <ion-note slot="start">{{ translate('Boxes') }}</ion-note>
-        <ion-button fill="clear" slot="end">
+        <ion-button :disabled="addingBoxForOrderIds.includes(order.orderId)" @click="addShipmentBox(order)" fill="clear" slot="end">
           {{ translate("Add") }}
           <ion-icon :icon="addCircleOutline"/>
         </ion-button>
       </ion-item>
-      <ion-item>
-        <ion-label>Box A</ion-label>
-        <ion-select value="3">
-          <ion-select-option value="1">Type 1</ion-select-option>
-          <ion-select-option value="2">Type 2</ion-select-option>
-          <ion-select-option value="3">Type 3</ion-select-option>  
+
+      <!-- Todo: Need to add the box type changing functionality -->
+      <ion-item v-for="shipmentPackage in order.shipmentPackages" :key="shipmentPackage.shipmentId">
+        <ion-label>{{ shipmentPackage.packageName }}</ion-label>
+        <ion-select interface="popover" :disabled="!shipmentPackage.shipmentBoxTypes.length" @ionChange="updateShipmentBoxType(shipmentPackage, order, $event)" :value="boxTypeDesc(getShipmentPackageType(shipmentPackage))" >
+          <ion-select-option v-for="boxType in shipmentPackage.shipmentBoxTypes" :key="boxTypeDesc(boxType)" :value="boxTypeDesc(boxType)">{{ boxTypeDesc(boxType) }}</ion-select-option>
         </ion-select>
       </ion-item>
     </ion-list>
@@ -86,8 +84,8 @@
 
 <script>
 import { 
-  IonButtons,
   IonButton,
+  IonButtons,
   IonCard,
   IonChip,
   IonContent,
@@ -105,13 +103,15 @@ import {
   modalController } from "@ionic/vue";
 import { defineComponent } from "vue";
 import { addCircleOutline, closeOutline, pricetag } from "ionicons/icons";
-import { translate } from '@hotwax/dxp-components'
+import { mapGetters, useStore } from 'vuex';
+import { copyToClipboard, formatUtcDate, getFeature } from '@/utils';
+import { ShopifyImg, translate } from '@hotwax/dxp-components';
 
 export default defineComponent({
   name: "EditPackagingModal",
-  components: { 
-    IonButtons,
+  components: {
     IonButton,
+    IonButtons,
     IonCard,
     IonChip,
     IonContent,
@@ -126,17 +126,45 @@ export default defineComponent({
     IonThumbnail,
     IonTitle,
     IonToolbar,
+    ShopifyImg
+  }, 
+  computed: {
+    ...mapGetters({
+      getProduct: 'product/getProduct',
+      boxTypeDesc: 'util/getShipmentBoxDesc',
+    }),
   },
   methods: {
     closeModal() {
       modalController.dismiss({ dismissed: true });
     },
+    getShipmentPackageType(shipmentPackage) {
+      let packageType = '';
+      if(shipmentPackage.shipmentBoxTypes.length){
+        packageType = shipmentPackage.shipmentBoxTypes.find((boxType) => boxType === shipmentPackage.shipmentBoxTypeId) ? shipmentPackage.shipmentBoxTypes.find((boxType) => boxType === shipmentPackage.shipmentBoxTypeId) : shipmentPackage.shipmentBoxTypes[0];
+      }
+      return packageType;
+    },
+    async updateShipmentBoxType(shipmentPackage, order, event) {
+      if(event.detail.value){
+        shipmentPackage.shipmentBoxTypeId = event.detail.value;
+        order.isModified = true;
+        this.store.dispatch('order/updateInProgressOrder', order);
+      }
+    }
   },
+  props: ['addingBoxForOrderIds', 'addShipmentBox', 'order', 'save', 'updateBox'],
   setup() {
+    const store = useStore()
+
     return {
       addCircleOutline,
       closeOutline,
+      copyToClipboard,
+      formatUtcDate,
+      getFeature,
       pricetag,
+      store,
       translate
     };
   },

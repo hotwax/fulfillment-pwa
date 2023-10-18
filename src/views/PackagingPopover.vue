@@ -5,13 +5,9 @@
         <ion-icon slot="start" :icon="pencil" />
         {{ translate("Edit packaging") }}
       </ion-item>
-      <ion-item button @click="reportIssue">
+      <ion-item button @click="reportIssue" lines="none">
         <ion-icon slot="start" :icon="warning" />
         {{ translate("Report an issue") }}
-      </ion-item>
-      <ion-item button lines="none">
-        <ion-icon slot="start" :icon="refresh" />
-        {{ translate("Reject order") }}
       </ion-item>
     </ion-list>
   </ion-content>
@@ -42,23 +38,36 @@ export default defineComponent({
   methods: {
     async editPackaging() {
       const editmodal = await modalController.create({
-        component: EditPackagingModal
+        component: EditPackagingModal,
+        componentProps: {
+          addingBoxForOrderIds: this.addingBoxForOrderIds,
+          addShipmentBox: this.addShipmentBox,
+          order: this.order,
+          updateBox: this.updateBox,
+          save: this.save
+        }
       });
       return editmodal.present();
     },
-     async reportIssue() {
+    async reportIssue() {
       const reportmodal = await modalController.create({
-        component: ReportIssueModal
+        component: ReportIssueModal,
+        componentProps: {
+          order: this.order,
+          save: this.save,
+          updateRejectReason: this.updateRejectReason
+        }
       });
       return reportmodal.present();
     }
   },
+  props: ['addingBoxForOrderIds', 'addShipmentBox', 'order',  'save', 'updateBox', 'updateRejectReason'],
   setup() {
     return {
       pencil,
-      warning,
       refresh,
-      translate
+      translate,
+      warning
     }
   }
 });

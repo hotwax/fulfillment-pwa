@@ -195,8 +195,8 @@ import {
   IonText,
   IonToggle,
   IonToolbar,
-  modalController,
   alertController,
+  modalController,
   popoverController
 } from '@ionic/vue';
 import { defineComponent } from 'vue';
