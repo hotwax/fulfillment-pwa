@@ -94,7 +94,7 @@
               <div v-for="item in kitProduct" :key="item.orderItemSeqId" class="order-item">
                 <div class="product-info">
                   <ion-item lines="none">
-                    <ion-thumbnail slot="start">
+                    <ion-thumbnail slot="start" @click="openImageModal(item)">
                       <ShopifyImg :src="getProduct(item.productId).mainImageUrl" size="small"/>
                     </ion-thumbnail>
                     <ion-label>
@@ -183,6 +183,7 @@ import { translate } from '@hotwax/dxp-components';
 import { UserService } from '@/services/UserService';
 import { Actions, hasPermission } from '@/authorization'
 import OrderActionsPopover from '@/components/OrderActionsPopover.vue'
+import ImageModal from '@/components/ImageModal.vue';
 
 export default defineComponent({
   name: 'OpenOrders',
@@ -377,7 +378,17 @@ export default defineComponent({
     },
     fetchProductStock(productId: string) {
       this.store.dispatch('stock/fetchStock', { productId })
-    }
+    },
+    async openImageModal(item: any){
+      const imageModal = await modalController.create({
+        component: ImageModal,
+        componentProps: {
+          imageUrl: this.getProduct(item.productId).mainImageUrl,
+          virtualProductName: item.virtualProductName
+        },
+      });
+      return imageModal.present();
+    },
   },
   async mounted () {
     emitter.on('updateOrderQuery', this.updateOrderQuery)

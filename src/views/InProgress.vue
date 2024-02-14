@@ -87,7 +87,7 @@
             <div v-for="item in order.orderItems" :key="item.orderItemSeqId" class="order-item">
               <div class="product-info">
                 <ion-item lines="none">
-                  <ion-thumbnail slot="start">
+                  <ion-thumbnail slot="start" @click="openImageModal(item)">
                     <ShopifyImg :src="getProduct(item.productId).mainImageUrl" size="small"/>
                   </ion-thumbnail>
                   <ion-label>
@@ -331,6 +331,7 @@ import ReportIssuePopover from '@/components/ReportIssuePopover.vue'
 import ShipmentBoxPopover from '@/components/ShipmentBoxPopover.vue'
 import QRCodeModal from '@/components/QRCodeModal.vue'
 import { useAuthStore } from '@hotwax/dxp-components'
+import ImageModal from '@/components/ImageModal.vue';
 
 export default defineComponent({
   name: 'InProgress',
@@ -1186,6 +1187,16 @@ export default defineComponent({
         componentProps: { picklistId, link }
       });
       return qrCodeModal.present();
+    },
+    async openImageModal(item: any){
+      const imageModal = await modalController.create({
+        component: ImageModal,
+        componentProps: {
+          imageUrl: this.getProduct(item.productId).mainImageUrl,
+          virtualProductName: item.productName
+        },
+      });
+      return imageModal.present();
     },
   },
   async mounted () {
