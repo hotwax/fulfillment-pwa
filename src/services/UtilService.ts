@@ -291,14 +291,6 @@ const fetchCarrierPartyIds = async (query: any): Promise <any>  => {
   });
 }
 
-const fetchPartyInformation = async (query: any): Promise <any>  => {
-  return api({
-    url: "performFind",
-    method: "get",
-    params: query
-  });
-}
-
 const fetchShipmentMethodTypeDesc = async (query: any): Promise <any>  => {
   return api({
     url: "performFind",
@@ -433,7 +425,6 @@ export const UtilService = {
   fetchEnumeration,
   fetchFacilities,
   fetchFacilityTypeInformation,
-  fetchPartyInformation,
   fetchPicklistInformation,
   fetchProductStores,
   fetchRejectReasonEnumTypes,
